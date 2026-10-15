@@ -2,6 +2,8 @@
 
 A personal toolkit for running Pathfinder 2e sessions. It runs in the browser and keeps everything in local storage, so there is no server or account.
 
+Live site: https://vitor-a14.github.io/red_chalice/ (deployed by GitHub Actions on every push to `main`).
+
 ## Features
 
 **Combat**
