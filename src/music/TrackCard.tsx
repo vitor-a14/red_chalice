@@ -21,7 +21,7 @@ export default function TrackCard({ track, folderId }: { track: Track; folderId:
 
   return (
     <div
-      className={`track ${deck ? "live" : ""} ${state ?? ""}`}
+      className={`track ${deck ? "live" : ""} ${state ?? ""} ${track.blocked ? "blocked" : ""}`}
       draggable={!editing}
       onDragStart={(e) => {
         e.dataTransfer.setData(TRACK_MIME, JSON.stringify({ folderId, trackId: track.id }));
@@ -69,7 +69,19 @@ export default function TrackCard({ track, folderId }: { track: Track; folderId:
             <div className="track-title" title={track.title}>
               {track.title}
             </div>
-            {deck?.error && <div className="track-error">{deck.error}</div>}
+            {deck?.error ? (
+              <div className="track-error">{deck.error}</div>
+            ) : (
+              track.blocked && (
+                <div className="track-error">
+                  The owner only allows this on YouTube.{" "}
+                  <button className="link-btn" onClick={() => openPopup(track)}>
+                    Play in a small window
+                  </button>{" "}
+                  or swap in another upload.
+                </div>
+              )
+            )}
             <div className="track-controls">
               <span className="vol-icon" aria-hidden>
                 {track.volume === 0 ? "🔇" : "🔉"}
@@ -144,4 +156,9 @@ function EditTrack({
       </div>
     </form>
   );
+}
+
+/** Opens the video in a small YouTube window, for videos that block embedding. */
+function openPopup(track: Track) {
+  window.open(watchUrl(track), "red-chalice-youtube", "popup,width=560,height=360");
 }

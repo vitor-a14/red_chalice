@@ -2498,3 +2498,20 @@ select.field {
     font-size: 12px;
   }
 }
+
+.link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--gold-hi);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.track.blocked {
+  border-top-color: var(--crimson-hi);
+}
+
+.track.blocked .track-art {
+  filter: grayscale(0.7) brightness(0.7);
+}

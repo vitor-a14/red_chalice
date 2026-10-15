@@ -10,6 +10,8 @@ export interface Track {
   /** 0–100 */
   volume: number;
   loop: boolean;
+  /** Set when YouTube reports the owner blocks embedding. */
+  blocked?: boolean;
 }
 
 export interface Folder {

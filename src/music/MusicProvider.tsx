@@ -155,7 +155,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const nextScore = useCallback(
     (deck: Deck, mode: ScoreMode) => {
       const folder = foldersRef.current.find((f) => f.id === deck.folderId);
-      const pool = folder?.tracks.filter((t) => t.category === deck.track.category) ?? [];
+      // Skip songs YouTube already told us are blocked outside YouTube.
+      const pool =
+        folder?.tracks.filter((t) => t.category === deck.track.category && (!t.blocked || t.id === deck.trackId)) ?? [];
       if (pool.length === 0) return stop(deck.id);
       let next: Track;
       if (mode === "shuffle" && pool.length > 1) {
@@ -231,6 +233,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           controls: 0,
           disablekb: 1,
           playsinline: 1,
+          origin: window.location.origin,
           ...(t.kind === "playlist" ? { listType: "playlist", list: t.ytId } : {}),
         },
         events: {
@@ -249,6 +252,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
               if (live && !live.leaving && (gains.current.get(deck.id) ?? 1) < 1 && !fades.current.has(deck.id)) {
                 fadeTo(deck.id, 1, FADE_IN_MS);
               }
+              if (findTrack(deck).blocked) updateTrack(deck.folderId, deck.trackId, { blocked: false });
               // Fill in a title we could not fetch when the track was added.
               const title = e.target.getVideoData?.().title;
               const current = findTrack(deck);
@@ -259,20 +263,27 @@ export function MusicProvider({ children }: { children: ReactNode }) {
             else if (e.data === S.ENDED) onEnded(deck.id);
           },
           onError: (e) => {
-            const msg =
-              e.data === 101 || e.data === 150
-                ? "The owner does not allow this video outside YouTube"
-                : e.data === 100
-                  ? "Video not found or private"
-                  : "YouTube could not play this";
-            setStatus(deck.id, "error", msg);
-            window.setTimeout(() => removeDeck(deck.id), 6000);
+            const code = Number(e.data);
+            const blocked = code === 101 || code === 150;
+            const live = decksRef.current.find((d) => d.id === deck.id);
+            // In a playlist, skip the blocked song and keep going.
+            if (t.kind === "playlist" && blocked) {
+              e.target.nextVideo();
+              return;
+            }
+            if (blocked && t.kind === "video") updateTrack(deck.folderId, deck.trackId, { blocked: true });
+            setStatus(deck.id, "error", errorMessage(code));
+            window.setTimeout(() => {
+              removeDeck(deck.id);
+              // Keep the soundtrack going if the folder has other songs.
+              if (live && isScore(t.category) && modeRef.current !== "repeat") nextScore(live, modeRef.current);
+            }, 4000);
           },
         },
       });
       players.current.set(deck.id, player);
     },
-    [applyVolume, fadeTo, onEnded, removeDeck, updateTrack],
+    [applyVolume, fadeTo, onEnded, removeDeck, updateTrack, nextScore],
   );
 
   const unmountPlayer = useCallback((deckId: string) => {
@@ -384,4 +395,20 @@ function DeckHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck.id]);
   return <div ref={ref} className="yt-host" />;
+}
+
+function errorMessage(code: number): string {
+  switch (code) {
+    case 101:
+    case 150:
+      return `The video's owner blocks playback on other sites (YouTube error ${code})`;
+    case 100:
+      return "Video not found or private (YouTube error 100)";
+    case 2:
+      return "Invalid video link (YouTube error 2)";
+    case 5:
+      return "The browser could not play this video (YouTube error 5)";
+    default:
+      return `YouTube refused to play this (error ${code})`;
+  }
 }
