@@ -17,6 +17,8 @@ export interface Deck {
   error?: string;
   /** Set while the deck fades out before being removed. */
   leaving?: boolean;
+  /** Set while a fade-in or fade-out button fade is running. */
+  fading?: "in" | "out";
 }
 
 interface MusicApi {
@@ -33,6 +35,12 @@ interface MusicApi {
   play: (track: Track, folderId: string) => void;
   stop: (deckId: string) => void;
   togglePause: (deckId: string) => void;
+  /** Fades the track down, then pauses it. */
+  fadeOut: (deckId: string) => void;
+  /** Starts or resumes the track from silence and fades it up. */
+  fadeIn: (track: Track, folderId: string) => void;
+  progress: (deckId: string) => { current: number; duration: number };
+  seek: (deckId: string, seconds: number) => void;
   skip: (deckId: string) => void;
   stopAll: () => void;
   deckFor: (trackId: string) => Deck | undefined;
@@ -51,6 +59,7 @@ export function useMusic(): MusicApi {
 const FADE_IN_MS = 1200;
 const CROSSFADE_MS = 1800;
 const STOP_FADE_MS = 700;
+const BUTTON_FADE_MS = 3000;
 
 const defaultFolders: Folder[] = [{ id: "general", name: "General", tracks: [] }];
 
@@ -304,6 +313,59 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     else p.playVideo();
   }, []);
 
+  const setFading = (deckId: string, fading: Deck["fading"]) =>
+    setDecks((ds) => ds.map((d) => (d.id === deckId ? { ...d, fading } : d)));
+
+  const fadeOut = useCallback(
+    (deckId: string) => {
+      const deck = decksRef.current.find((d) => d.id === deckId);
+      const p = players.current.get(deckId);
+      if (!deck || !p || deck.status !== "playing") return;
+      setFading(deckId, "out");
+      fadeTo(deckId, 0, BUTTON_FADE_MS, () => {
+        p.pauseVideo();
+        setFading(deckId, undefined);
+      });
+    },
+    [fadeTo],
+  );
+
+  const fadeIn = useCallback(
+    (track: Track, folderId: string) => {
+      const deck = decksRef.current.find((d) => d.trackId === track.id && !d.leaving);
+      if (!deck) {
+        play(track, folderId);
+        return;
+      }
+      const p = players.current.get(deck.id);
+      if (!p) return;
+      setFading(deck.id, "in");
+      const up = () => fadeTo(deck.id, 1, BUTTON_FADE_MS, () => setFading(deck.id, undefined));
+      if (deck.status === "playing") {
+        up();
+      } else {
+        window.clearInterval(fades.current.get(deck.id));
+        fades.current.delete(deck.id);
+        gains.current.set(deck.id, 0);
+        applyVolume(deck.id);
+        // Start the fade before playback so the PLAYING handler sees it running.
+        up();
+        p.playVideo();
+      }
+    },
+    [applyVolume, fadeTo, play],
+  );
+
+  const progress = useCallback((deckId: string) => {
+    const p = players.current.get(deckId);
+    if (!p || typeof p.getCurrentTime !== "function") return { current: 0, duration: 0 };
+    return { current: p.getCurrentTime() || 0, duration: p.getDuration() || 0 };
+  }, []);
+
+  const seek = useCallback((deckId: string, seconds: number) => {
+    players.current.get(deckId)?.seekTo(seconds, true);
+  }, []);
+
   const skip = useCallback(
     (deckId: string) => {
       const deck = decksRef.current.find((d) => d.id === deckId);
@@ -351,12 +413,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       play,
       stop,
       togglePause,
+      fadeOut,
+      fadeIn,
+      progress,
+      seek,
       skip,
       stopAll,
       deckFor: (trackId) => decks.find((d) => d.trackId === trackId && !d.leaving),
       playCategory,
     }),
-    [folders, setFoldersState, updateTrack, decks, master, setMaster, muted, scoreMode, setScoreMode, play, stop, togglePause, skip, stopAll, playCategory],
+    [folders, setFoldersState, updateTrack, decks, master, setMaster, muted, scoreMode, setScoreMode, play, stop, togglePause, fadeOut, fadeIn, progress, seek, skip, stopAll, playCategory],
   );
 
   return (

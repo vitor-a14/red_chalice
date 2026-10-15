@@ -2515,3 +2515,48 @@ select.field {
 .track.blocked .track-art {
   filter: grayscale(0.7) brightness(0.7);
 }
+
+.track-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-progress .time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 34px;
+}
+
+.track-progress .time:last-child {
+  text-align: right;
+}
+
+.slider.seek {
+  flex: 1;
+  min-width: 0;
+  background: linear-gradient(90deg, var(--crimson-hi) var(--pct, 0%), rgba(255, 255, 255, 0.12) var(--pct, 0%));
+}
+
+.slider.seek:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.track-fades {
+  display: flex;
+  gap: 6px;
+}
+
+.fade-btn {
+  flex: 1;
+  font-size: 11px;
+}
+
+.fade-btn.busy {
+  opacity: 1;
+  color: var(--gold-hi);
+  border-color: var(--gold-dim);
+  animation: pulse 1.2s ease-in-out infinite;
+}
