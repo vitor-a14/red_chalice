@@ -22,6 +22,14 @@ Live site: https://vitor-a14.github.io/red_chalice/ (deployed by GitHub Actions 
 - Fortune / misfortune for single d20 rolls, and an optional DC that shows the degree of success (including nat 20 / nat 1).
 - Animated rolls with a live running total, plus a roll history.
 
+**Music**
+- Session folders for YouTube sounds. Paste a video or playlist link, name it, and file it as Ambience, Music, Combat or Effects. Drag a sound onto another folder to move it.
+- Ambience layers: several can play at once, each with its own volume and loop toggle.
+- Music and Combat share one slot and crossfade: starting a combat song fades out the tavern tune. When a song ends it repeats, moves to the next song in the folder, or shuffles.
+- Effects play once over everything else.
+- Audio keeps playing while you switch tabs, with a now-playing bar at the bottom for pausing, skipping, volume and stop all.
+- Videos whose owners block embedding can't play outside YouTube; the app says so when that happens.
+
 ## Running it
 
 ```sh
