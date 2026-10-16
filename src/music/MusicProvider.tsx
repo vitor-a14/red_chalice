@@ -59,7 +59,15 @@ export function useMusic(): MusicApi {
 const FADE_IN_MS = 1200;
 const CROSSFADE_MS = 1800;
 const STOP_FADE_MS = 700;
-const BUTTON_FADE_MS = 3000;
+const FADE_OUT_BUTTON_MS = 6000;
+const FADE_IN_BUTTON_MS = 5000;
+
+/**
+ * Maps a 0–1 fade position to a volume multiplier. Loudness is perceived
+ * logarithmically, so a straight line sounds like it barely moves and then
+ * drops off a cliff at the end; a cubic curve sounds even all the way down.
+ */
+const fadeCurve = (g: number) => g * g * g;
 
 const defaultFolders: Folder[] = [{ id: "general", name: "General", tracks: [] }];
 
@@ -96,7 +104,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const p = players.current.get(deckId);
     const deck = decksRef.current.find((d) => d.id === deckId);
     if (!p || !deck || typeof p.setVolume !== "function") return;
-    const gain = gains.current.get(deckId) ?? 1;
+    const gain = fadeCurve(gains.current.get(deckId) ?? 1);
     p.setVolume(Math.round((findTrack(deck).volume * levelRef.current * gain) / 100));
   }, []);
 
@@ -322,9 +330,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const p = players.current.get(deckId);
       if (!deck || !p || deck.status !== "playing") return;
       setFading(deckId, "out");
-      fadeTo(deckId, 0, BUTTON_FADE_MS, () => {
-        p.pauseVideo();
-        setFading(deckId, undefined);
+      fadeTo(deckId, 0, FADE_OUT_BUTTON_MS, () => {
+        // Hold at silence briefly so the pause itself can't be heard.
+        window.setTimeout(() => {
+          if ((gains.current.get(deckId) ?? 1) === 0) p.pauseVideo();
+          setFading(deckId, undefined);
+        }, 300);
       });
     },
     [fadeTo],
@@ -340,7 +351,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const p = players.current.get(deck.id);
       if (!p) return;
       setFading(deck.id, "in");
-      const up = () => fadeTo(deck.id, 1, BUTTON_FADE_MS, () => setFading(deck.id, undefined));
+      const up = () => fadeTo(deck.id, 1, FADE_IN_BUTTON_MS, () => setFading(deck.id, undefined));
       if (deck.status === "playing") {
         up();
       } else {
